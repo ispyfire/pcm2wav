@@ -100,7 +100,17 @@ func (c *dataSubChunk) applySubchunk2Size(subchunk2Size int) {
 	applyLittleEndianInteger(c.Subchunk2Size[:], subchunk2Size, 4)
 }
 
+// assume PCM (i.e. Linear quantization) for format
 func ConvertBytes(pcm []byte, channels int, sampleRate int, bitsPerSample int) (wav []byte, err error) {
+	pcmLength := len(pcm)
+	subchunk1Size := 16
+	subchunk2Size := pcmLength
+	chunkSize := 4 + (8 + subchunk1Size) + (8 + subchunk2Size)
+
+	return ConvertBytesWithFormat(pcm, channels, sampleRate, bitsPerSample, 1, chunkSize)
+}
+
+func ConvertBytesWithFormat(pcm []byte, channels int, sampleRate int, bitsPerSample int, format int, chunkSize int) (wav []byte, err error) {
 	if channels != 1 && channels != 2 {
 		return wav, errors.New("invalid_channels_value")
 	}
@@ -114,7 +124,6 @@ func ConvertBytes(pcm []byte, channels int, sampleRate int, bitsPerSample int) (
 	pcmLength := len(pcm)
 	subchunk1Size := 16
 	subchunk2Size := pcmLength
-	chunkSize := 4 + (8 + subchunk1Size) + (8 + subchunk2Size)
 
 	rc := riffChunk{}
 	rc.applyChunkId("RIFF")
@@ -124,7 +133,7 @@ func ConvertBytes(pcm []byte, channels int, sampleRate int, bitsPerSample int) (
 	fsc := fmtSubChunk{}
 	fsc.applySubchunk1Id("fmt ")
 	fsc.applySubchunk1Size(subchunk1Size)
-	fsc.applyAudioFormat(1)
+	fsc.applyAudioFormat(format)
 	fsc.applyNumChannels(channels)
 	fsc.applySampleRate(sampleRate)
 	fsc.applyByteRate(sampleRate * channels * bitsPerSample / 8)
